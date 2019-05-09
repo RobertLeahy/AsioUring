@@ -1,0 +1,3 @@
+add_library(Uring::Uring INTERFACE IMPORTED)
+set_target_properties(Uring::Uring PROPERTIES INTERFACE_LINK_LIBRARIES "${URING_LIBRARY}")
+set_target_properties(Uring::Uring PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${URING_INCLUDE_DIR}")
