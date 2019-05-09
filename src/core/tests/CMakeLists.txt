@@ -1,4 +1,5 @@
 asio_uring_add_test(core
-                    SOURCES main.cpp
+                    SOURCES fd.cpp
+                            main.cpp
                             uring.cpp
                     LIBRARIES Catch2::Catch2)
