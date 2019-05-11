@@ -5,6 +5,7 @@ asio_uring_add_test(core
                             lockfree_node.cpp
                             lockfree_node_pool.cpp
                             lockfree_queue.cpp
+                            spin_lock.cpp
                             uring.cpp
                     LIBRARIES Boost::boost
                               Catch2::Catch2
