@@ -1,5 +1,6 @@
 asio_uring_add_test(core
                     SOURCES eventfd.cpp
+                            eventfd_queue.cpp
                             fd.cpp
                             main.cpp
                             lockfree_node.cpp
