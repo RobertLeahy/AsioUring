@@ -84,8 +84,64 @@ TEST_CASE("eventfd_queue push & consume_all",
     CHECK(s.destroy == 0);
     auto iter = consumed.begin();
     REQUIRE_FALSE(iter == consumed.end());
+    CHECK(*iter == 1);
     ++iter;
     REQUIRE_FALSE(iter == consumed.end());
+    CHECK(*iter == 2);
+    ++iter;
+    CHECK(iter == consumed.end());
+  }
+  CHECK(s.allocate == 2);
+  CHECK(s.construct == 2);
+  CHECK(s.deallocate == 2);
+  CHECK(s.destroy == 2);
+}
+
+TEST_CASE("eventfd_queue pending",
+          "[eventfd_queue][eventfd]")
+{
+  using allocator_type = test::allocator<int>;
+  allocator_type::state_type s;
+  allocator_type a(s);
+  std::vector<int> consumed;
+  {
+    eventfd_queue<int,
+                  allocator_type> queue(a);
+    queue.emplace(1);
+    CHECK(s.allocate == 1);
+    CHECK(s.construct == 1);
+    CHECK(s.deallocate == 0);
+    CHECK(s.destroy == 0);
+    queue.emplace(2);
+    CHECK(s.allocate == 2);
+    CHECK(s.construct == 2);
+    CHECK(s.deallocate == 0);
+    CHECK(s.destroy == 0);
+    auto pending = queue.pending();
+    REQUIRE(pending == 2);
+    queue.consume(1,
+                  [&](auto i) { consumed.push_back(i); });
+    CHECK(s.allocate == 2);
+    CHECK(s.construct == 2);
+    CHECK(s.deallocate == 0);
+    CHECK(s.destroy == 0);
+    auto iter = consumed.begin();
+    REQUIRE_FALSE(iter == consumed.end());
+    CHECK(*iter == 1);
+    ++iter;
+    CHECK(iter == consumed.end());
+    queue.consume(1,
+                  [&](auto i) { consumed.push_back(i); });
+    CHECK(s.allocate == 2);
+    CHECK(s.construct == 2);
+    CHECK(s.deallocate == 0);
+    CHECK(s.destroy == 0);
+    iter = consumed.begin();
+    REQUIRE_FALSE(iter == consumed.end());
+    CHECK(*iter == 1);
+    ++iter;
+    REQUIRE_FALSE(iter == consumed.end());
+    CHECK(*iter == 2);
     ++iter;
     CHECK(iter == consumed.end());
   }

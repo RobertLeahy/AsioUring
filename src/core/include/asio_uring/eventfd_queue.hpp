@@ -108,6 +108,9 @@ public:
   void push(value_type v) {
     emplace(std::move(v));
   }
+  integer_type pending() {
+    return e_.read();
+  }
   template<typename Function>
   void consume(integer_type n,
                Function f)
@@ -118,7 +121,7 @@ public:
   }
   template<typename Function>
   std::size_t consume_all(Function f) {
-    auto to_read = e_.read();
+    auto to_read = pending();
     consume(to_read,
             std::move(f));
     return to_read;
