@@ -1,5 +1,6 @@
 asio_uring_add_test(core
-                    SOURCES eventfd.cpp
+                    SOURCES callable_storage.cpp
+                            eventfd.cpp
                             eventfd_queue.cpp
                             fd.cpp
                             main.cpp
