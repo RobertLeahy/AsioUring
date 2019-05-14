@@ -5,9 +5,6 @@ asio_uring_add_test(core
                             execution_context.cpp
                             fd.cpp
                             main.cpp
-                            lockfree_node.cpp
-                            lockfree_node_pool.cpp
-                            lockfree_queue.cpp
                             spin_lock.cpp
                             uring.cpp
                     LIBRARIES Boost::boost
