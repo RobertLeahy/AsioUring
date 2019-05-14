@@ -15,6 +15,8 @@ namespace asio_uring {
 
 namespace detail::callable_storage {
 
+template<typename R,
+         typename... Args>
 class alignas(std::max_align_t) base {
 public:
   base() = default;
@@ -22,10 +24,12 @@ public:
   base(base&&) = default;
   base& operator=(const base&) = default;
   base& operator=(base&&) = default;
-  virtual ~base() noexcept;
-  virtual void invoke() = 0;
+  virtual ~base() noexcept {}
+  virtual R invoke(Args...) = 0;
 };
 
+template<typename F,
+         typename... Args>
 class indirect_base {
 public:
   indirect_base() = default;
@@ -33,13 +37,16 @@ public:
   indirect_base(indirect_base&&) = default;
   indirect_base& operator=(const indirect_base&) = default;
   indirect_base& operator=(indirect_base&&) = default;
-  virtual void invoke() = 0;
+  virtual F invoke(Args...) = 0;
   virtual void destroy() noexcept = 0;
 };
 
 template<typename T,
-         typename Allocator>
-class allocator_indirect final : public indirect_base,
+         typename Allocator,
+         typename R,
+         typename... Args>
+class allocator_indirect final : public indirect_base<R,
+                                                      Args...>,
                                  private Allocator
 {
 public:
@@ -48,8 +55,8 @@ public:
     : Allocator(alloc),
       t_       (std::move(t))
   {}
-  virtual void invoke() override {
-    prepare_invoke()();
+  virtual R invoke(Args... args) override {
+    return prepare_invoke()(std::forward<Args>(args)...);
   }
   virtual void destroy() noexcept override {
     Allocator alloc(*this);
@@ -86,16 +93,24 @@ private:
   T t_;
 };
 
-class indirect final : public base {
+template<typename R,
+         typename... Args>
+class indirect final : public base<R,
+                                   Args...>
+{
 private:
+  using indirect_base_type = indirect_base<R,
+                                           Args...>;
   template<typename T,
            typename Allocator>
-  static indirect_base* create(T t,
-                               const Allocator& alloc)
+  static indirect_base_type* create(T t,
+                                    const Allocator& alloc)
   {
     using traits_type = std::allocator_traits<Allocator>;
     using indirect_type = allocator_indirect<T,
-                                             Allocator>;
+                                             Allocator,
+                                             R,
+                                             Args...>;
     using rebound_allocator_type = typename traits_type::template rebind_alloc<indirect_type>;
     using rebound_traits_type = typename traits_type::template rebind_traits<indirect_type>;
     rebound_allocator_type rebound(alloc);
@@ -122,22 +137,35 @@ public:
     : inner_(create(std::move(t),
                     alloc))
   {}
-  ~indirect() noexcept;
-  virtual void invoke() override;
+  ~indirect() noexcept {
+    if (inner_) {
+      inner_->destroy();
+    }
+  }
+  virtual R invoke(Args...) override {
+    auto ptr = inner_;
+    assert(ptr);
+    inner_ = nullptr;
+    return ptr->invoke();
+  }
 private:
-  indirect_base* inner_;
+  indirect_base_type* inner_;
 };
 
-template<typename T>
-class direct final : public base {
+template<typename T,
+         typename R,
+         typename... Args>
+class direct final : public base<R,
+                                 Args...>
+{
 public:
   template<typename Allocator>
   direct(T t,
          const Allocator&) noexcept(std::is_nothrow_move_constructible_v<T>)
     : t_(std::move(t))
   {}
-  virtual void invoke() override {
-    t_();
+  virtual R invoke(Args... args) override {
+    return t_(std::forward<Args>(args)...);
   }
 private:
   T t_;
@@ -145,30 +173,53 @@ private:
 
 template<typename Storage,
          typename T,
-         typename Allocator>
+         typename Allocator,
+         typename R,
+         typename... Args>
 class select {
 private:
-  using direct_type = direct<T>;
-  using align_type = std::conditional_t<(alignof(direct_type) > alignof(base)),
-                                        indirect,
+  using direct_type = direct<T,
+                             R,
+                             Args...>;
+  using indirect_type = indirect<R,
+                                 Args...>;
+  using base_type = base<R,
+                         Args...>;
+  using align_type = std::conditional_t<(alignof(direct_type) > alignof(base_type)),
+                                        indirect_type,
                                         direct_type>;
 public:
   using type = std::conditional_t<(sizeof(direct_type) > sizeof(Storage)),
-                                  indirect,
+                                  indirect_type,
                                   align_type>;
 };
 
 template<typename Storage,
          typename T,
-         typename Allocator>
+         typename Allocator,
+         typename R,
+         typename... Args>
 using select_t = typename select<Storage,
                                  T,
-                                 Allocator>::type;
+                                 Allocator,
+                                 R,
+                                 Args...>::type;
 
 }
 
-template<std::size_t Buffer>
-class callable_storage {
+template<std::size_t Buffer,
+         typename Signature = void()>
+class callable_storage;
+
+template<std::size_t Buffer,
+         typename R,
+         typename... Args>
+class callable_storage<Buffer,
+                       R(Args...)>
+{
+private:
+  using base_type = detail::callable_storage::base<R,
+                                                   Args...>;
 public:
   callable_storage() = delete;
   callable_storage(const callable_storage&) = delete;
@@ -182,8 +233,10 @@ public:
   {
     auto ptr = new(&storage_) detail::callable_storage::select_t<storage_type,
                                                                  std::decay_t<T>,
-                                                                 Allocator>(std::forward<T>(t),
-                                                                            alloc);
+                                                                 Allocator,
+                                                                 R,
+                                                                 Args...>(std::forward<T>(t),
+                                                                          alloc);
 #ifdef NDEBUG
     (void)ptr;
 #else
@@ -191,30 +244,30 @@ public:
 #endif
   }
   ~callable_storage() noexcept {
-    using type = detail::callable_storage::base;
-    get().~type();
+    get().~base_type();
   }
-  void operator()() {
-    get().invoke();
+  R operator()(Args... args) {
+    return get().invoke(std::forward<Args>(args)...);
   }
 private:
-  detail::callable_storage::base& get() noexcept {
-    auto ptr = reinterpret_cast<detail::callable_storage::base*>(&storage_);
+  base_type& get() noexcept {
+    auto ptr = reinterpret_cast<base_type*>(&storage_);
     assert(ptr_);
     assert(ptr == ptr_);
     return *ptr;
   }
-  const detail::callable_storage::base& get() const noexcept {
-    auto ptr = reinterpret_cast<detail::callable_storage::base*>(&storage_);
+  const base_type& get() const noexcept {
+    auto ptr = reinterpret_cast<base_type*>(&storage_);
     assert(ptr_);
     assert(ptr == ptr_);
     return *ptr;
   }
   using storage_type = std::aligned_union_t<Buffer,
-                                            detail::callable_storage::indirect>;
-  storage_type                    storage_;
+                                            detail::callable_storage::indirect<R,
+                                                                               Args...>>;
+  storage_type storage_;
 #ifndef NDEBUG
-  detail::callable_storage::base* ptr_;
+  base_type*   ptr_;
 #endif
 };
 

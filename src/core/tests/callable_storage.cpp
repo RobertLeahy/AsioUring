@@ -208,5 +208,37 @@ TEST_CASE("callable_storage big object throws",
   CHECK(as.destroy == 1);
 }
 
+class return_callable : public callable {
+public:
+  using callable::callable;
+  int operator()(int a,
+                 int& b)
+  {
+    static_cast<callable&>(*this)();
+    assert(b);
+    auto c = b;
+    b = 0;
+    return a + c;
+  }
+};
+
+TEST_CASE("callable_storage params & non-void return",
+          "[callable_storage]")
+{
+  state s;
+  return_callable c(s);
+  std::allocator<return_callable> a;
+  callable_storage<1024,
+                   int(int,
+                       int&)> storage(c,
+                                      a);
+  int i = 4;
+  auto result = storage(3,
+                        i);
+  CHECK(s.invoked);
+  CHECK(result == 7);
+  CHECK(i == 0);
+}
+
 }
 }
