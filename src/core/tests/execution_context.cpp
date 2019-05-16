@@ -3,11 +3,13 @@
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <system_error>
 #include <thread>
 #include <type_traits>
 #include <utility>
 #include <asio_uring/liburing.hpp>
 #include <boost/asio/post.hpp>
+#include <errno.h>
 
 #include <catch2/catch.hpp>
 
@@ -351,6 +353,21 @@ TEST_CASE("execution_context completion",
   REQUIRE(cqe);
   CHECK(cqe->res == 0);
   CHECK(cqe->flags == 0);
+}
+
+TEST_CASE("execution_context get_sqe") {
+  execution_context ctx(1);
+  ctx.get_sqe();
+  std::error_code ec;
+  REQUIRE_FALSE(ec);
+  try {
+    ctx.get_sqe();
+  } catch (const std::system_error& ex) {
+    ec = ex.code();
+  }
+  CHECK(ec);
+  CHECK(ec.default_error_condition() == std::error_code(EBUSY,
+                                                        std::generic_category()).default_error_condition());
 }
 
 }

@@ -97,6 +97,7 @@ public:
   native_handle_type native_handle() noexcept;
   const_native_handle_type native_handle() const noexcept;
   bool running_in_this_thread() const noexcept;
+  ::io_uring_sqe& get_sqe();
 private:
   bool out_of_work() const noexcept;
   class tid_guard {

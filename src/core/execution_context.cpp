@@ -43,7 +43,8 @@ T& from_user_data(std::uint64_t user_data) noexcept {
 
 enum class error {
   success = 0,
-  no_sqe_for_eventfd
+  no_sqe_for_eventfd,
+  no_sqe
 };
 
 std::error_code make_error_code(error err) noexcept {
@@ -58,6 +59,8 @@ std::error_code make_error_code(error err) noexcept {
         return "Success";
       case error::no_sqe_for_eventfd:
         return "No submission queue entry to enqueue operation against internal event fd";
+      case error::no_sqe:
+        return "No submission queue entry";
       default:
         break;
       }
@@ -68,6 +71,7 @@ std::error_code make_error_code(error err) noexcept {
       case error::success:
         return std::error_condition();
       case error::no_sqe_for_eventfd:
+      case error::no_sqe:
         return std::error_code(EBUSY,
                                std::generic_category()).default_error_condition();
       default:
@@ -202,6 +206,14 @@ bool execution_context::running_in_this_thread() const noexcept {
 
 bool execution_context::out_of_work() const noexcept {
   return !work_.load(std::memory_order_acquire);
+}
+
+::io_uring_sqe& execution_context::get_sqe() {
+  auto sqe = ::io_uring_get_sqe(u_.native_handle());
+  if (!sqe) {
+    throw_error_code(error::no_sqe_for_eventfd);
+  }
+  return *sqe;
 }
 
 execution_context::tid_guard::tid_guard(std::atomic<std::thread::id>& tid) noexcept
