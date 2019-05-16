@@ -5,6 +5,7 @@ asio_uring_add_test(core
                             execution_context.cpp
                             fd.cpp
                             main.cpp
+                            service.cpp
                             spin_lock.cpp
                             uring.cpp
                     LIBRARIES Boost::boost
