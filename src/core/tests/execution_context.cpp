@@ -370,5 +370,59 @@ TEST_CASE("execution_context get_sqe") {
                                                         std::generic_category()).default_error_condition());
 }
 
+TEST_CASE("execution_context executor_type on_work_finished within handler",
+          "[execution_context]")
+{
+  execution_context ctx(10);
+  ctx.get_executor().on_work_started();
+  bool invoked = false;
+  auto func = [&]() {
+    invoked = true;
+    ctx.get_executor().on_work_finished();
+  };
+  ctx.get_executor().dispatch(func,
+                              std::allocator<void>());
+  CHECK_FALSE(invoked);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  CHECK(invoked);
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+  ctx.restart();
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+}
+
+TEST_CASE("execution_context executor_type on_work_finished and dispatch within handler",
+          "[execution_context]")
+{
+  execution_context ctx(10);
+  ctx.get_executor().on_work_started();
+  bool inner_invoked = false;
+  auto inner = [&]() {
+    inner_invoked = true;
+  };
+  bool outer_invoked = false;
+  auto outer = [&]() {
+    outer_invoked = true;
+    ctx.get_executor().dispatch(inner,
+                                std::allocator<void>());
+    ctx.get_executor().on_work_finished();
+  };
+  ctx.get_executor().dispatch(outer,
+                              std::allocator<void>());
+  CHECK_FALSE(inner_invoked);
+  CHECK_FALSE(outer_invoked);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  CHECK(inner_invoked);
+  CHECK(outer_invoked);
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+  ctx.restart();
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+}
+
 }
 }
