@@ -1,5 +1,6 @@
 asio_uring_add_test(asio
-                    SOURCES execution_context.cpp
+                    SOURCES completion_handler.cpp
+                            execution_context.cpp
                             main.cpp
                     LIBRARIES Boost::boost
                               Catch2::Catch2
