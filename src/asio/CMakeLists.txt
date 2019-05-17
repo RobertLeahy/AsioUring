@@ -1,5 +1,6 @@
 asio_uring_add_library(asio SOURCES completion_handler.cpp
                                     execution_context.cpp
+                                    iovec.cpp
                             LIBRARIES Boost::boost
                                       core
                                       Uring::Uring)
