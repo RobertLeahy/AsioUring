@@ -7,6 +7,7 @@
 #include <optional>
 #include <type_traits>
 #include <utility>
+#include <vector>
 #include <boost/intrusive/list.hpp>
 #include <boost/intrusive/list_hook.hpp>
 #include <boost/intrusive/options.hpp>
@@ -14,12 +15,14 @@
 #include "callable_storage.hpp"
 #include "execution_context.hpp"
 #include "liburing.hpp"
+#include <sys/uio.h>
 
 namespace asio_uring {
 
 class service {
 private:
   using hook_type = boost::intrusive::list_member_hook<boost::intrusive::link_mode<boost::intrusive::auto_unlink>>;
+  using iovs_type = std::vector<::iovec>;
   class completion final : public execution_context::completion {
   friend class service;
   private:
@@ -46,6 +49,7 @@ private:
     hook_type                    service_;
     hook_type                    implementation_;
     std::optional<function_type> wrapped_;
+    iovs_type                    iovs_;
   };
   template<hook_type(completion::*MemberPtr)>
   using list_t = boost::intrusive::list<completion,
@@ -131,17 +135,48 @@ public:
            c);
     g.release();
   }
+  template<typename Function,
+           typename T,
+           typename Allocator>
+  void initiate(implementation_type& impl,
+                std::size_t iovs,
+                Function f,
+                T&& t,
+                const Allocator& alloc)
+  {
+    auto&& c = acquire(impl);
+    release_guard g(*this,
+                    c);
+    c.iovs_ = acquire(iovs);
+    c.emplace(std::forward<T>(t),
+              alloc);
+    auto&& sqe = ctx_.get_sqe();
+    void* user_data = &c;
+    static_assert(noexcept(f(sqe,
+                             c.iovs_.data(),
+                             user_data)));
+    f(sqe,
+      c.iovs_.data(),
+      user_data);
+    submit(sqe,
+           c);
+    g.release();
+  }
 private:
   completion& maybe_allocate();
   completion& acquire(implementation_type&);
+  iovs_type acquire(iovs_type::size_type);
   void release(completion&) noexcept;
+  void release(iovs_type&) noexcept;
   void submit(::io_uring_sqe&,
               completion&);
   using list_type = list_t<&completion::service_>;
+  using iovs_cache_type = std::vector<iovs_type>;
   void destroy_list(list_type&) noexcept;
   execution_context& ctx_;
   list_type          free_;
   list_type          in_use_;
+  iovs_cache_type    iovs_cache_;
 };
 
 }

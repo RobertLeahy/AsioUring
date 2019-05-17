@@ -1,13 +1,17 @@
 #include <asio_uring/service.hpp>
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <string>
 #include <asio_uring/execution_context.hpp>
 #include <asio_uring/fd.hpp>
 #include <asio_uring/liburing.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <fcntl.h>
 #include <poll.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include <catch2/catch.hpp>
@@ -226,6 +230,89 @@ TEST_CASE("service move_assign",
                   impl_2);
   CHECK(std::distance(impl.begin(),
                       impl.end()) == 2);
+}
+
+TEST_CASE("service initiate w/iovs",
+          "[service]")
+{
+  std::string str("hello");
+  char filename[] = "/tmp/XXXXXX";
+  fd file(::mkstemp(filename));
+  INFO("Temporary file is " << filename);
+  auto written = ::write(file.native_handle(),
+                         str.data(),
+                         str.size());
+  REQUIRE(written == str.size());
+  file = fd();
+  file = fd(::open(filename,
+                   O_RDONLY));
+  char buffer[5];
+  void* initial_data = nullptr;
+  void* initial_iovs = nullptr;
+  void* second_data = nullptr;
+  void* second_iovs = nullptr;
+  std::optional<::io_uring_cqe> cqe;
+  execution_context ctx(100);
+  service svc(ctx);
+  service::implementation_type impl;
+  svc.construct(impl);
+  guard g(svc,
+          impl);
+  std::allocator<void> a;
+  svc.initiate(impl,
+               1,
+               [&](auto&& sqe,
+                   auto* iovs,
+                   auto data) noexcept
+               {
+                 iovs->iov_base = buffer;
+                 iovs->iov_len = sizeof(buffer);
+                 initial_data = data;
+                 initial_iovs = iovs;
+                 ::io_uring_prep_readv(&sqe,
+                                       file.native_handle(),
+                                       iovs,
+                                       1,
+                                       0);
+               },
+               [&](auto&& c) { cqe = c; },
+               a);
+  CHECK(initial_data);
+  CHECK(initial_iovs);
+  CHECK_FALSE(cqe);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(cqe);
+  REQUIRE(cqe->res == 5);
+  CHECK(::io_uring_cqe_get_data(&*cqe) == initial_data);
+  CHECK(std::equal(std::begin(buffer),
+                   std::end(buffer),
+                   str.begin(),
+                   str.end()));
+  cqe = std::nullopt;
+  svc.initiate(impl,
+               1,
+               [&](auto&& sqe,
+                   auto* iovs,
+                   auto data) noexcept
+               {
+                 iovs->iov_base = buffer;
+                 iovs->iov_len = sizeof(buffer);
+                 second_data = data;
+                 second_iovs = iovs;
+                 ::io_uring_prep_readv(&sqe,
+                                       file.native_handle(),
+                                       iovs,
+                                       1,
+                                       0);
+               },
+               [&](auto&& c) { cqe = c; },
+               a);
+  CHECK(second_data);
+  CHECK(second_data == initial_data);
+  CHECK(second_iovs);
+  CHECK(second_iovs == initial_iovs);
+  CHECK_FALSE(cqe);
 }
 
 }

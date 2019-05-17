@@ -122,12 +122,38 @@ service::completion& service::acquire(implementation_type& impl) {
   return retr;
 }
 
+service::iovs_type service::acquire(iovs_type::size_type s) {
+  if (iovs_cache_.empty()) {
+    iovs_type retr;
+    retr.resize(s);
+    return retr;
+  }
+  iovs_type retr(std::move(iovs_cache_.back()));
+  assert(retr.empty());
+  iovs_cache_.pop_back();
+  return retr;
+}
+
 void service::release(completion& c) noexcept {
   assert(c.service_.is_linked());
   c.reset();
+  release(c.iovs_);
   c.implementation_.unlink();
   c.service_.unlink();
   free_.push_front(c);
+}
+
+void service::release(iovs_type& iovs) noexcept {
+  if (!iovs.capacity()) {
+    return;
+  }
+  iovs.clear();
+  try {
+    iovs_cache_.emplace_back();
+    using std::swap;
+    swap(iovs,
+         iovs_cache_.back());
+  } catch (...) {}
 }
 
 void service::submit(::io_uring_sqe& sqe,
