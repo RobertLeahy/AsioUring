@@ -1,4 +1,5 @@
-asio_uring_add_library(asio SOURCES completion_handler.cpp
+asio_uring_add_library(asio SOURCES basic_io_object.cpp
+                                    completion_handler.cpp
                                     execution_context.cpp
                                     fd_completion_handler.cpp
                                     iovec.cpp
