@@ -23,8 +23,10 @@ void service::completion::complete(const ::io_uring_cqe& cqe) {
 }
 
 void service::completion::reset() noexcept {
-  wrapped_ = std::nullopt;
-  svc_.context().get_executor().on_work_finished();
+  if (wrapped_) {
+    wrapped_ = std::nullopt;
+    svc_.context().get_executor().on_work_finished();
+  }
 }
 
 service::release_guard::release_guard(service& self,

@@ -315,5 +315,35 @@ TEST_CASE("service initiate w/iovs",
   CHECK_FALSE(cqe);
 }
 
+TEST_CASE("service shutdown idempotence",
+          "[service]")
+{
+  void* initial_data = nullptr;
+  std::optional<::io_uring_cqe> cqe;
+  execution_context ctx(100);
+  service svc(ctx);
+  service::implementation_type impl;
+  svc.construct(impl);
+  guard g(svc,
+          impl);
+  CHECK(impl.begin() == impl.end());
+  std::allocator<void> a;
+  svc.initiate(impl,
+               [&](auto&& sqe,
+                   auto data) noexcept
+               {
+                 ::io_uring_prep_nop(&sqe);
+                 initial_data = data;
+               },
+               [&](auto c) { cqe = c; },
+               a);
+  CHECK(initial_data);
+  CHECK_FALSE(cqe);
+  CHECK(std::distance(impl.begin(),
+                      impl.end()) == 1);
+  svc.shutdown();
+  svc.shutdown();
+}
+
 }
 }
