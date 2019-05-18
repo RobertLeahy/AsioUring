@@ -14,6 +14,7 @@ class execution_context : public asio_uring::execution_context,
 {
 public:
   using asio_uring::execution_context::execution_context;
+  ~execution_context() noexcept;
 };
 
 }
