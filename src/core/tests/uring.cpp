@@ -496,5 +496,71 @@ TEST_CASE("uring nop",
   CHECK(ptr == &i);
 }
 
+TEST_CASE("uring tcp socket poll read then close",
+          "[uring]")
+{
+  fd listen(::socket(AF_INET,
+                     SOCK_STREAM,
+                     0));
+  ::sockaddr_in addr;
+  std::memset(&addr,
+              0,
+              sizeof(addr));
+  addr.sin_family = AF_INET;
+  uint32_t ip = 127;
+  ip <<= 8;
+  ip <<= 8;
+  ip <<= 8;
+  ip |= 1;
+  boost::endian::native_to_big_inplace(ip);
+  addr.sin_addr.s_addr = ip;
+  auto result = ::bind(listen.native_handle(),
+                       reinterpret_cast<const ::sockaddr*>(&addr),
+                       sizeof(addr));
+  REQUIRE(result == 0);
+  ::socklen_t addr_len = sizeof(addr);
+  result = ::getsockname(listen.native_handle(),
+                         reinterpret_cast<::sockaddr*>(&addr),
+                         &addr_len);
+  REQUIRE(result == 0);
+  REQUIRE(addr.sin_port != 0);
+  result = ::listen(listen.native_handle(),
+                    1);
+  REQUIRE(result == 0);
+  fd connect(::socket(AF_INET,
+                      SOCK_STREAM,
+                      0));
+  result = ::connect(connect.native_handle(),
+                     reinterpret_cast<const ::sockaddr*>(&addr),
+                     sizeof(addr));
+  REQUIRE(result == 0);
+  addr_len = sizeof(addr);
+  fd accepted(::accept(listen.native_handle(),
+                       reinterpret_cast<::sockaddr*>(&addr),
+                       &addr_len));
+  listen = fd();
+  uring u(10);
+  auto sqe = ::io_uring_get_sqe(u.native_handle());
+  REQUIRE(sqe);
+  ::io_uring_prep_poll_add(sqe,
+                           accepted.native_handle(),
+                           POLLIN);
+  result = ::io_uring_submit(u.native_handle());
+  REQUIRE(result >= 0);
+  ::io_uring_cqe* cqe;
+  result = ::io_uring_peek_cqe(u.native_handle(),
+                               &cqe);
+  REQUIRE(result >= 0);
+  REQUIRE_FALSE(cqe);
+  accepted = fd();
+  result = ::io_uring_peek_cqe(u.native_handle(),
+                               &cqe);
+  REQUIRE(result >= 0);
+  //  I'd have expected the operation to fail,
+  //  but apparently it vanishes into a black
+  //  hole never to complete
+  CHECK_FALSE(cqe);
+}
+
 }
 }
