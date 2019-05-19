@@ -8,6 +8,7 @@ asio_uring_add_library(asio SOURCES async_file.cpp
                                     iovec.cpp
                                     read.cpp
                                     service.cpp
+                                    write.cpp
                             LIBRARIES Boost::boost
                                       Boost::system
                                       core

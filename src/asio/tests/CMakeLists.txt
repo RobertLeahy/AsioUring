@@ -10,6 +10,7 @@ asio_uring_add_test(asio
                             main.cpp
                             read.cpp
                             service.cpp
+                            write.cpp
                     LIBRARIES Boost::boost
                               Boost::system
                               Catch2::Catch2
