@@ -29,11 +29,13 @@ private:
   using rw_signature = void(std::error_code,
                             std::size_t);
   using poll_signature = void(std::error_code);
+  using fsync_signature = poll_signature;
   using rw_result_type = std::pair<std::error_code,
                                    std::size_t>;
   static rw_result_type to_rw_result(int) noexcept;
   static std::error_code to_poll_add_result(int) noexcept;
   static std::error_code to_poll_remove_result(int) noexcept;
+  static std::error_code to_fsync_result(int) noexcept;
   template<typename Function>
   static auto make_rw_completion(Function f) {
     return [func = std::move(f)](auto&& cqe) mutable {
@@ -167,6 +169,34 @@ public:
              },
              [w = std::move(wrapper)](auto&& cqe) mutable {
                w(to_poll_remove_result(cqe.res));
+             },
+             alloc);
+    return result.get();
+  }
+  template<typename CompletionToken>
+  auto initiate_fsync(implementation_type& impl,
+                      int fd,
+                      bool fdatasync,
+                      CompletionToken&& token)
+  {
+    using async_result_type = boost::asio::async_result<std::decay_t<CompletionToken>,
+                                                        poll_signature>;
+    using completion_handler_type = typename async_result_type::completion_handler_type;
+    completion_handler_type h(std::forward<CompletionToken>(token));
+    async_result_type result(h);
+    completion_handler wrapper(std::move(h),
+                               context().get_executor());
+    auto alloc = wrapper.get_allocator();
+    initiate(impl,
+             [&](auto&& sqe,
+                 auto) noexcept
+             {
+               ::io_uring_prep_fsync(&sqe,
+                                     fd,
+                                     fdatasync ? IORING_FSYNC_DATASYNC : 0);
+             },
+             [w = std::move(wrapper)](auto&& cqe) mutable {
+               w(to_fsync_result(cqe.res));
              },
              alloc);
     return result.get();

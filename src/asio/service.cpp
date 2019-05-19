@@ -38,6 +38,10 @@ std::error_code service::to_poll_remove_result(int res) noexcept {
                          std::generic_category());
 }
 
+std::error_code service::to_fsync_result(int res) noexcept {
+  return to_poll_remove_result(res);
+}
+
 service::service(boost::asio::execution_context& ctx)
   : asio_uring::service                    (static_cast<asio_uring::asio::execution_context&>(ctx)),
     boost::asio::execution_context::service(ctx)

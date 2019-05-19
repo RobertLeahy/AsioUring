@@ -544,5 +544,76 @@ TEST_CASE("service initiate_poll_remove not found",
                                std::generic_category()));
 }
 
+TEST_CASE("service initiate_fsync",
+          "[service]")
+{
+  char filename[] = "/tmp/XXXXXX";
+  fd file(::mkstemp(filename));
+  INFO("Temporary file is " << filename);
+  std::optional<std::error_code> ec;
+  execution_context ctx(10);
+  auto&& svc = boost::asio::use_service<service>(ctx);
+  service::implementation_type impl;
+  svc.construct(impl);
+  guard g(svc,
+          impl);
+  svc.initiate_fsync(impl,
+                     file.native_handle(),
+                     false,
+                     [&](auto e) noexcept { ec = e; });
+  CHECK_FALSE(ec);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(ec);
+  CHECK_FALSE(*ec);
+}
+
+TEST_CASE("service initiate_fsync fdatasync",
+          "[service]")
+{
+  char filename[] = "/tmp/XXXXXX";
+  fd file(::mkstemp(filename));
+  INFO("Temporary file is " << filename);
+  std::optional<std::error_code> ec;
+  execution_context ctx(10);
+  auto&& svc = boost::asio::use_service<service>(ctx);
+  service::implementation_type impl;
+  svc.construct(impl);
+  guard g(svc,
+          impl);
+  svc.initiate_fsync(impl,
+                     file.native_handle(),
+                     true,
+                     [&](auto e) noexcept { ec = e; });
+  CHECK_FALSE(ec);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(ec);
+  CHECK_FALSE(*ec);
+}
+
+TEST_CASE("service initiate_fsync bad fd",
+          "[service]")
+{
+  std::optional<std::error_code> ec;
+  execution_context ctx(10);
+  auto&& svc = boost::asio::use_service<service>(ctx);
+  service::implementation_type impl;
+  svc.construct(impl);
+  guard g(svc,
+          impl);
+  svc.initiate_fsync(impl,
+                     -1,
+                     false,
+                     [&](auto e) noexcept { ec = e; });
+  CHECK_FALSE(ec);
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(ec);
+  CHECK(*ec);
+  CHECK(*ec == std::error_code(EBADF,
+                               std::generic_category()));
+}
+
 }
 }
