@@ -9,6 +9,7 @@ asio_uring_add_test(core
                             service.cpp
                             spin_lock.cpp
                             uring.cpp
+                            write.cpp
                     LIBRARIES Boost::boost
                               Catch2::Catch2
                               testing
