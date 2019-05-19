@@ -313,25 +313,25 @@ TEST_CASE("execution_context poll_one",
   CHECK(handlers == 0);
 }
 
+class completion : public execution_context::completion {
+public:
+  completion(execution_context& ctx,
+             std::optional<::io_uring_cqe>& cqe) noexcept
+    : ctx_(ctx),
+      cqe_(cqe)
+  {}
+  virtual void complete(const ::io_uring_cqe& cqe) override {
+    ctx_.get_executor().on_work_finished();
+    cqe_ = cqe;
+  }
+public:
+  execution_context&             ctx_;
+  std::optional<::io_uring_cqe>& cqe_;
+};
+
 TEST_CASE("execution_context completion",
           "[execution_context]")
 {
-  class completion : public execution_context::completion {
-  public:
-    completion(execution_context& ctx,
-               std::optional<::io_uring_cqe>& cqe) noexcept
-      : ctx_(ctx),
-        cqe_(cqe)
-    {}
-    virtual void complete(const ::io_uring_cqe& cqe) override {
-      REQUIRE_FALSE(cqe_);
-      ctx_.get_executor().on_work_finished();
-      cqe_ = cqe;
-    }
-  public:
-    execution_context&             ctx_;
-    std::optional<::io_uring_cqe>& cqe_;
-  };
   execution_context ctx(100);
   std::optional<::io_uring_cqe> cqe;
   completion c(ctx,
@@ -422,6 +422,121 @@ TEST_CASE("execution_context executor_type on_work_finished and dispatch within 
   ctx.restart();
   handlers = ctx.run();
   CHECK(handlers == 0);
+}
+
+TEST_CASE("execution_context completions on multiple runs (run all)",
+          "[execution_context]")
+{
+  execution_context ctx(100);
+  std::optional<::io_uring_cqe> cqe;
+  completion c(ctx,
+               cqe);
+  auto&& sqe = ctx.get_sqe();
+  ::io_uring_prep_nop(&sqe);
+  ::io_uring_sqe_set_data(&sqe,
+                          &c);
+  int result = ::io_uring_submit(ctx.native_handle());
+  REQUIRE(result >= 0);
+  auto handlers = ctx.run();
+  CHECK(handlers == 0);
+  CHECK_FALSE(cqe);
+  ctx.restart();
+  ctx.get_executor().on_work_started();
+  handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(cqe);
+  CHECK(cqe->res == 0);
+  CHECK(cqe->flags == 0);
+  cqe = std::nullopt;
+  auto&& next_sqe = ctx.get_sqe();
+  ::io_uring_prep_nop(&next_sqe);
+  ::io_uring_sqe_set_data(&next_sqe,
+                          &c);
+  result = ::io_uring_submit(ctx.native_handle());
+  REQUIRE(result >= 0);
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+  ctx.get_executor().on_work_started();
+  handlers = ctx.run();
+  CHECK(handlers == 0);
+  ctx.restart();
+  handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(cqe);
+  CHECK(cqe->res == 0);
+  CHECK(cqe->flags == 0);
+}
+
+TEST_CASE("execution_context completions on multiple runs (run first poll second)",
+          "[execution_context]")
+{
+  execution_context ctx(100);
+  std::optional<::io_uring_cqe> cqe;
+  completion c(ctx,
+               cqe);
+  auto&& sqe = ctx.get_sqe();
+  ::io_uring_prep_nop(&sqe);
+  ::io_uring_sqe_set_data(&sqe,
+                          &c);
+  int result = ::io_uring_submit(ctx.native_handle());
+  REQUIRE(result >= 0);
+  ctx.get_executor().on_work_started();
+  auto handlers = ctx.run();
+  CHECK(handlers == 1);
+  REQUIRE(cqe);
+  CHECK(cqe->res == 0);
+  CHECK(cqe->flags == 0);
+  cqe = std::nullopt;
+  auto&& next_sqe = ctx.get_sqe();
+  ::io_uring_prep_nop(&next_sqe);
+  ::io_uring_sqe_set_data(&next_sqe,
+                          &c);
+  result = ::io_uring_submit(ctx.native_handle());
+  REQUIRE(result >= 0);
+  ctx.get_executor().on_work_started();
+  ctx.restart();
+  handlers = ctx.poll();
+  CHECK(handlers == 1);
+  REQUIRE(cqe);
+  CHECK(cqe->res == 0);
+  CHECK(cqe->flags == 0);
+}
+
+TEST_CASE("execution_context executor_type on_work_started/_finished multiple runs",
+          "[execution_context]")
+{
+  execution_context ctx(100);
+  ctx.get_executor().on_work_started();
+  ctx.get_executor().on_work_started();
+  bool invoked = false;
+  std::optional<execution_context::count_type> count;
+  auto func = [&]() noexcept { invoked = true; };
+  ctx.get_executor().dispatch(func,
+                              std::allocator<void>());
+  auto thread_func = [&]() {
+    count = ctx.run();
+  };
+  std::thread t(thread_func);
+  ctx.get_executor().on_work_finished();
+  ctx.get_executor().on_work_finished();
+  t.join();
+  CHECK(invoked);
+  REQUIRE(count);
+  CHECK(count == 1);
+  count = std::nullopt;
+  invoked = false;
+  ctx.get_executor().on_work_started();
+  ctx.get_executor().on_work_started();
+  ctx.get_executor().dispatch(func,
+                              std::allocator<void>());
+  ctx.restart();
+  t = std::thread(thread_func);
+  ctx.get_executor().on_work_finished();
+  ctx.get_executor().on_work_finished();
+  t.join();
+  CHECK(invoked);
+  REQUIRE(count);
+  CHECK(count == 1);
 }
 
 }

@@ -253,6 +253,7 @@ execution_context::count_type execution_context::all_impl() {
   count_type retr = 0;
   tid_guard tid_g(tid_);
   for (;;) {
+    assert(!stopped());
     auto tmp = pending_;
     auto done = service_queue(pending_);
     assert(!pending_);
@@ -262,6 +263,7 @@ execution_context::count_type execution_context::all_impl() {
                      std::memory_order_relaxed);
       return retr;
     }
+    assert(!stopped());
     auto result = impl<Blocking>();
     retr += result.handlers;
     if (result.stopped) {
@@ -333,7 +335,7 @@ bool execution_context::stopped() const noexcept {
 }
 
 void execution_context::restart(std::size_t i,
-                                const bool& b)
+                                bool& b)
 {
   assert(!b);
   ::io_uring_sqe* sqe = ::io_uring_get_sqe(u_.native_handle());
@@ -350,6 +352,7 @@ void execution_context::restart(std::size_t i,
                        std::generic_category());
     throw std::system_error(ec);
   }
+  b = true;
 }
 
 void execution_context::restart_if(std::size_t i,
@@ -360,7 +363,7 @@ void execution_context::restart_if(std::size_t i,
   }
   restart(i,
           b);
-  b = true;
+  assert(b);
 }
 
 execution_context::handle_cqe_type execution_context::handle_cqe(::io_uring_cqe& cqe) {
@@ -390,6 +393,7 @@ execution_context::handle_cqe_type execution_context::handle_cqe(::io_uring_cqe&
   if (cqe.user_data == to_user_data(stop_started_)) {
     stop_started_ = false;
     assert(stopped());
+    stop_.read();
     if (stopped_.load(std::memory_order_acquire)) {
       retr.stopped = true;
       return retr;
@@ -401,6 +405,7 @@ execution_context::handle_cqe_type execution_context::handle_cqe(::io_uring_cqe&
   if (cqe.user_data == to_user_data(zero_started_)) {
     zero_started_ = false;
     assert(stopped());
+    zero_.read();
     if (!work_.load(std::memory_order_acquire)) {
       retr.stopped = true;
       return retr;

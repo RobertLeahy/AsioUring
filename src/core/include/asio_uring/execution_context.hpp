@@ -126,7 +126,7 @@ private:
   handle_cqe_type impl();
   bool stopped() const noexcept;
   void restart(std::size_t,
-               const bool&);
+               bool&);
   void restart_if(std::size_t,
                   bool&);
   handle_cqe_type handle_cqe(::io_uring_cqe&);
