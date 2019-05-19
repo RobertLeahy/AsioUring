@@ -6,6 +6,7 @@ asio_uring_add_library(asio SOURCES async_file.cpp
                                     fd_completion_token.cpp
                                     file_object.cpp
                                     iovec.cpp
+                                    poll_file.cpp
                                     read.cpp
                                     service.cpp
                                     write.cpp

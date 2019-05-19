@@ -8,6 +8,7 @@ asio_uring_add_test(asio
                             file_object.cpp
                             iovec.cpp
                             main.cpp
+                            poll_file.cpp
                             read.cpp
                             service.cpp
                             write.cpp
