@@ -4,6 +4,7 @@ asio_uring_add_test(asio
                             execution_context.cpp
                             fd_completion_handler.cpp
                             fd_completion_token.cpp
+                            file_object.cpp
                             iovec.cpp
                             main.cpp
                             service.cpp
