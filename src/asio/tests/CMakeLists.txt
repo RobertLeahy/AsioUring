@@ -1,5 +1,6 @@
 asio_uring_add_test(asio
-                    SOURCES basic_io_object.cpp
+                    SOURCES async_file.cpp
+                            basic_io_object.cpp
                             completion_handler.cpp
                             execution_context.cpp
                             fd_completion_handler.cpp
