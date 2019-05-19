@@ -8,6 +8,7 @@ asio_uring_add_test(asio
                             file_object.cpp
                             iovec.cpp
                             main.cpp
+                            read.cpp
                             service.cpp
                     LIBRARIES Boost::boost
                               Boost::system
