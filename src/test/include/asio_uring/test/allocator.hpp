@@ -99,6 +99,12 @@ public:
                           std::memory_order_relaxed);
     static_cast<value_type*>(ptr)->~value_type();
   }
+  bool operator==(const allocator& rhs) const noexcept {
+    return s_ == rhs.s_;
+  }
+  bool operator!=(const allocator& rhs) const noexcept {
+    return !(*this == rhs);
+  }
 private:
   state_type* s_;
 };
