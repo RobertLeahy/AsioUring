@@ -1,4 +1,5 @@
-asio_uring_add_library(core SOURCES callable_storage.cpp
+asio_uring_add_library(core SOURCES accept.cpp
+                                    callable_storage.cpp
                                     connect.cpp
                                     eventfd.cpp
                                     eventfd_queue.cpp
