@@ -1,5 +1,6 @@
 asio_uring_add_test(asio
-                    SOURCES async_file.cpp
+                    SOURCES accept_file.cpp
+                            async_file.cpp
                             basic_io_object.cpp
                             completion_handler.cpp
                             connect_file.cpp
