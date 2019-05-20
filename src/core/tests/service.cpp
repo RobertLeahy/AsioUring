@@ -147,7 +147,7 @@ TEST_CASE("service poll add/remove",
   CHECK_FALSE(add_cqe);
   CHECK_FALSE(remove_cqe);
   ctx.restart();
-  handlers = ctx.poll();
+  handlers = ctx.run();
   CHECK(handlers == 2);
   REQUIRE(add_cqe);
   CHECK(add_cqe->res == 0);
