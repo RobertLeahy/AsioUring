@@ -2,6 +2,7 @@ asio_uring_add_test(asio
                     SOURCES async_file.cpp
                             basic_io_object.cpp
                             completion_handler.cpp
+                            connect_file.cpp
                             execution_context.cpp
                             fd_completion_handler.cpp
                             fd_completion_token.cpp
