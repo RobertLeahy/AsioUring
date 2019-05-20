@@ -1,6 +1,8 @@
 #include <asio_uring/uring.hpp>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <optional>
@@ -250,7 +252,7 @@ TEST_CASE("uring tcp socket poll read",
               0,
               sizeof(addr));
   addr.sin_family = AF_INET;
-  uint32_t ip = 127;
+  std::uint32_t ip = 127;
   ip <<= 8;
   ip <<= 8;
   ip <<= 8;
@@ -324,7 +326,7 @@ TEST_CASE("uring tcp socket poll write",
               0,
               sizeof(addr));
   addr.sin_family = AF_INET;
-  uint32_t ip = 127;
+  std::uint32_t ip = 127;
   ip <<= 8;
   ip <<= 8;
   ip <<= 8;
@@ -383,7 +385,7 @@ TEST_CASE("uring tcp socket poll read then remove",
               0,
               sizeof(addr));
   addr.sin_family = AF_INET;
-  uint32_t ip = 127;
+  std::uint32_t ip = 127;
   ip <<= 8;
   ip <<= 8;
   ip <<= 8;
@@ -507,7 +509,7 @@ TEST_CASE("uring tcp socket poll read then close",
               0,
               sizeof(addr));
   addr.sin_family = AF_INET;
-  uint32_t ip = 127;
+  std::uint32_t ip = 127;
   ip <<= 8;
   ip <<= 8;
   ip <<= 8;
