@@ -16,22 +16,53 @@
 
 namespace asio_uring::asio {
 
+/**
+ *  A completion token wrapper which:
+ *
+ *  - Maintains the value returned from the
+ *    initiating function
+ *  - Applies the same transformation to the
+ *    final completion handler as is performed
+ *    by \ref fd_completion_handler
+ *
+ *  \tparam CompletionToken
+ *    The completion token type to wrap.
+ *
+ *  \sa
+ *    fd_completion_handler
+ */
 template<typename CompletionToken>
 class fd_completion_token {
 public:
+#ifndef ASIO_URING_DOXYGEN_RUNNING
   using completion_token_type = CompletionToken;
+#endif
+  /**
+   *  A type alias for `std::shared_ptr<fd>`.
+   */
   using fd_type = std::shared_ptr<asio_uring::fd>;
+  /**
+   *  Wraps a completion token and \ref fd "file descriptor".
+   *
+   *  \param [in] token
+   *    The completion token.
+   *  \param [in] fd
+   *    The `std::shared_ptr` to the \ref fd "file descripctor".
+   *    If `!fd` is `true` the behavior is undefined.
+   */
   explicit fd_completion_token(CompletionToken token,
                                fd_type fd) noexcept(std::is_nothrow_move_constructible_v<CompletionToken>)
     : token_(std::move(token)),
       fd_   (std::move(fd))
   {}
+#ifndef ASIO_URING_DOXYGEN_RUNNING
   CompletionToken&& completion_token() && noexcept {
     return std::move(token_);
   }
   fd_type&& fd() && noexcept {
     return std::move(fd_);
   }
+#endif
 private:
   CompletionToken token_;
   fd_type         fd_;
@@ -54,6 +85,7 @@ public:
 
 }
 
+#ifndef ASIO_URING_DOXYGEN_RUNNING
 namespace boost::asio {
 
 template<typename CompletionToken,
@@ -96,3 +128,4 @@ class associated_executor<::asio_uring::asio::detail::fd_completion_token_handle
 {};
 
 }
+#endif

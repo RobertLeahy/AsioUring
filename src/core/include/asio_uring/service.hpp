@@ -19,6 +19,20 @@
 
 namespace asio_uring {
 
+/**
+ *  Models the `IoObjectService` concept from Boost.Asio
+ *  and provides pools of:
+ *
+ *  - `::iovec` objects
+ *  - Objects which derive from \ref execution_context::completion
+ *    and which provide storage for completion handlers in
+ *    accordance with the rules of Boost.Asio and the Networking
+ *    TS
+ *
+ *  Note that while this object models `IoObjectService`
+ *  it does not model `Service` as this would require
+ *  relying on Boost.Asio-specific classes and functionality.
+ */
 class service {
 private:
   using hook_type = boost::intrusive::list_member_hook<boost::intrusive::link_mode<boost::intrusive::auto_unlink>>;
@@ -73,6 +87,10 @@ private:
     completion& c_;
   };
 public:
+  /**
+   *  A handle to the pool of \ref execution_context::completion
+   *  objects a particular I/O object has acquired.
+   */
   class implementation_type {
   friend class service;
   public:
@@ -91,27 +109,160 @@ public:
     };
     list_type list_;
   public:
+    /**
+     *  @{
+     *  A type which models `ForwardIterator` and whose
+     *  `value_type` is `const void*`. 
+     */
     using const_iterator = boost::transform_iterator<to_const_void_pointer,
                                                      list_type::const_iterator>;
     using iterator = const_iterator;
+    /**
+     *  @}
+     *  Obtains an iterator to the first `user_data` value
+     *  in use by this handle.
+     *
+     *  \return
+     *    An \ref const_iterator "iterator".
+     */
     const_iterator begin() const noexcept;
+    /**
+     *  Obtains an iterator to one past the last `user_data`
+     *  value in use by this handle.
+     *
+     *  \return
+     *    An \ref const_iterator "iterator".
+     */
     const_iterator end() const noexcept;
   };
+  /**
+   *  Creates a service which is associated with a certain
+   *  \ref execution_context.
+   *
+   *  \param [in] ctx
+   *    The \ref execution_context. This reference must remain
+   *    valid for the lifetime of the newly-created object or
+   *    the behavior is undefined.
+   */
   explicit service(execution_context& ctx);
   service(const service&) = delete;
   service(service&&) = delete;
   service& operator=(const service&) = delete;
   service& operator=(service&&) = delete;
+#ifndef ASIO_URING_DOXYGEN_RUNNING
   ~service() noexcept;
+#endif
+  /**
+   *  Destroys all stored completion handlers.
+   *
+   *  Note that this does not cause all outstanding operations
+   *  to complete, it merely causes them to do nothing when
+   *  they complete.
+   */
   void shutdown() noexcept;
+  /**
+   *  Retrieves the associated \ref execution_context.
+   *
+   *  A reference to the associated \ref execution_context.
+   */
   execution_context& context() const noexcept;
+  /**
+   *  Initializes a \ref implementation_type "handle".
+   *
+   *  \param [in, out] impl
+   *    The \ref implementation_type "handle" to initialize.
+   */
   void construct(implementation_type& impl);
+  /**
+   *  Deinitializes a \ref implementation_type "handle".
+   *
+   *  Note that this merely cleans up the
+   *  \ref implementation_type handle. All outstanding
+   *  operations initiated against that handle are
+   *  still outstanding and may complete in the future.
+   *
+   *  \param [in] impl
+   *    The \ref implementation_type "handle" to deinitialize.
+   */
   void destroy(implementation_type& impl) noexcept;
+  /**
+   *  Initializes a \ref implementation_type "handle" by
+   *  transferring another \ref implementation_type "handle".
+   *
+   *  \param [in, out] impl
+   *    The \ref implementation_type "handle" to initialize.
+   *  \param [in] src
+   *    The \ref implementation_type "handle" from which to
+   *    transfer.
+   */
   void move_construct(implementation_type& impl,
                       implementation_type& src) noexcept;
+  /**
+   *  Deinitializes a \ref implementation_type "handle" and
+   *  then initializes it by transferring another
+   *  \ref implementation_type "handle".
+   *
+   *  \param [in, out] impl
+   *    The \ref implementation_type "handle" to initialize.
+   *  \param [in] svc
+   *    The service associated with `src`. If this is not
+   *    the same as this object the behavior is undefined.
+   *  \param [in] src
+   *    The \ref implementation_type "handle" from which to
+   *    transfer.
+   */
   void move_assign(implementation_type& impl,
                    service& svc,
                    implementation_type& src) noexcept;
+  /**
+   *  Initiates an operation against the `io_uring`.
+   *
+   *  \tparam Function
+   *    A callable object which is invocable with
+   *    the following signature:
+   *    \code
+   *    void(::io_uring_sqe&,
+   *         void*) noexcept;
+   *    \endcode
+   *    Where the first argument is the submission
+   *    queue entry (which this function is expected
+   *    to initialize) and the second argument is
+   *    a pointer to \ref execution_context::completion
+   *    cast to `void*`. Note that the second argument
+   *    is for reference only: After the return from
+   *    the callable object `::io_uring_sqe::user_data`
+   *    will be populated with this value whether the
+   *    caller does the population or not.
+   *  \tparam T
+   *    The completion handler which is invocable
+   *    with the following signature:
+   *    \code
+   *    void(const ::io_uring_cqe&);
+   *    \endcode
+   *    Note that none of the guarantees of Boost.Asio
+   *    or the Networking TS regarding executors or
+   *    allocators is honored for this completion
+   *    handler: It is always invoked in the
+   *    \ref execution_context associated with this
+   *    object and storage is always allocated with
+   *    `alloc`. It is the responsibility of the caller
+   *    of this function to honor the guarantees reganding
+   *    executor and allocator associations.
+   *  \tparam Allocator
+   *    The type of allocator to use to allocate storage
+   *    for the completion handler (if necessary).
+   *
+   *  \param [in, out] impl
+   *    The \ref implementation_type "handle" to associate
+   *    the operation with.
+   *  \param [in] f
+   *    The function to use to initialize the submission
+   *    queue entry.
+   *  \param [in] t
+   *    The completion handler.
+   *  \param [in] alloc
+   *    The `Allocator`.
+   */
   template<typename Function,
            typename T,
            typename Allocator>
@@ -135,6 +286,58 @@ public:
            c);
     g.release();
   }
+  /**
+   *  Initiates an operation against the `io_uring`.
+   *
+   *  \tparam Function
+   *    A callable object which is invocable with
+   *    the following signature:
+   *    \code
+   *    void(::io_uring_sqe&,
+   *         ::iovec*,
+   *         void*) noexcept;
+   *    \endcode
+   *    Where the arguments are as follows:
+   *    1. The submission queue entry (which this function
+   *       is expected to initialize)
+   *    2. A pointer to `iovs` `::iovec` objects
+   *    3. A pointer to \ref execution_context::completion
+   *       cast to `void*` (for reference only there is no
+   *       need to populate this in the submission queue entry)
+   *  \tparam T
+   *    The completion handler which is invocable
+   *    with the following signature:
+   *    \code
+   *    void(const ::io_uring_cqe&);
+   *    \endcode
+   *    Note that none of the guarantees of Boost.Asio
+   *    or the Networking TS regarding executors or
+   *    allocators is honored for this completion
+   *    handler: It is always invoked in the
+   *    \ref execution_context associated with this
+   *    object and storage is always allocated with
+   *    `alloc`. It is the responsibility of the caller
+   *    of this function to honor the guarantees reganding
+   *    executor and allocator associations.
+   *  \tparam Allocator
+   *    The type of allocator to use to allocate storage
+   *    for the completion handler (if necessary).
+   *
+   *  \param [in, out] impl
+   *    The \ref implementation_type "handle" to associate
+   *    the operation with.
+   *  \param [in] iovs
+   *    The number of `::iovec` objects to main available
+   *    from the managed pool via the second argument to
+   *    `f`.
+   *  \param [in] f
+   *    The function to use to initialize the submission
+   *    queue entry.
+   *  \param [in] t
+   *    The completion handler.
+   *  \param [in] alloc
+   *    The `Allocator`.
+   */
   template<typename Function,
            typename T,
            typename Allocator>

@@ -34,6 +34,28 @@ std::size_t write(int fd,
                   boost::asio::const_buffer buffer,
                   std::error_code& ec) noexcept;
 
+/**
+ *  Writes as many bytes as possible from
+ *  a sequence of buffers without blocking.
+ *
+ *  Note that in order for this operation to
+ *  be meaningful the provided file descriptor
+ *  must be non-blocking.
+ *
+ *  \tparam ConstBufferSequence
+ *    A type which models `ConstBufferSequence`.
+ *
+ *  \param [in] fd
+ *    The file descriptor.
+ *  \param [in] cb
+ *    The sequence of buffers from which to write.
+ *  \param [out] ec
+ *    A `std::error_code` which shall receive the
+ *    result of the operation.
+ *
+ *  \return
+ *    The number of bytes read.
+ */
 template<typename ConstBufferSequence>
 std::size_t write(int fd,
                   ConstBufferSequence cb,

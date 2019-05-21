@@ -22,6 +22,21 @@
 
 namespace asio_uring::asio {
 
+/**
+ *  Derives from \ref asio_uring::service and
+ *  `boost::asio::execution_context::service` thereby
+ *  modeling `IoObjectService` (which
+ *  \ref asio_uring::service already does) and
+ *  `Service`.
+ *
+ *  Extends the functionality offered by
+ *  \ref asio_uring::service by integrating with
+ *  the guarantees of Boost.Asio (which
+ *  \ref asio_uring::service deliberately does not
+ *  do to remain agnostic between Boost.Asio and
+ *  possible implementations based on the
+ *  Networking TS).
+ */
 class service : public asio_uring::service,
                 public boost::asio::execution_context::service
 {
@@ -86,9 +101,51 @@ private:
     return result.get();
   }
 public:
+  /**
+   *  A type alias for this type.
+   *
+   *  Required by the `Service` concept.
+   */
   using key_type = service;
+  /**
+   *  Creates a service which is associated with a
+   *  particular `boost::asio::execution_context`.
+   *
+   *  \warning
+   *    The `Service` concept requires that this constructor
+   *    be callable with a sole argument of type
+   *    `boost::asio::execution_context&` however this service
+   *    requires access to a \ref asio_uring::execution_context
+   *    to dispatch asynchronous operations in the `io_uring`
+   *    managed thereby. Accordingly it will blindly downcast
+   *    the given reference to this type and it is up to the caller
+   *    to ensure the dynamic type of the reference is
+   *    appropriate to enable this without undefined behavior.
+   *
+   *  \param [in] ctx
+   *    A reference to a `boost::asio::execution_context` to
+   *    associate with this object. This reference must remain
+   *    valid for the lifetime of this object or the behavior is
+   *    undefined with one exception: If this object's lifetime
+   *    is managed by the set of services offered by the referred
+   *    `boost::asio::execution_context` then the reference may
+   *    be invalidated by entering that object's destructor without
+   *    undefined behavior (in this case `shutdown` will be
+   *    invoked on this object as is usual for the Boost.Asio
+   *    service teardown process).
+   */
   explicit service(boost::asio::execution_context& ctx);
+  /**
+   *  Obtains a reference to the associated \ref execution_context.
+   *
+   *  Note that this reference is the result of downcasting
+   *  the sole argument to this object's constructor.
+   *
+   *  \return
+   *    A reference to the associated \ref execution_context.
+   */
   execution_context& context() const noexcept;
+#ifndef ASIO_URING_DOXYGEN_RUNNING
   template<typename MutableBufferSequence,
            typename CompletionToken>
   auto initiate_read_some_at(implementation_type& impl,
@@ -201,6 +258,7 @@ public:
              alloc);
     return result.get();
   }
+#endif
 private:
   virtual void shutdown() noexcept override;
 };

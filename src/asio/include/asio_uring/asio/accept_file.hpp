@@ -15,6 +15,11 @@
 
 namespace asio_uring::asio {
 
+/**
+ *  An I/O object which wraps a file descriptor for
+ *  which the POSIX `accept` (and Linux `accept4`) calls
+ *  are valid and meaningful.
+ */
 class accept_file {
 public:
   accept_file() = delete;
@@ -22,6 +27,20 @@ public:
   accept_file(accept_file&&) = default;
   accept_file& operator=(const accept_file&) = delete;
   accept_file& operator=(accept_file&&) = default;
+  /**
+   *  Creates an accept_file by assuming ownership of
+   *  a certain file descriptor.
+   *
+   *  \param [in] ctx
+   *    The \ref execution_context to use for asynchronous
+   *    I/O. This reference must remain valid for the
+   *    lifetime of the object or the behavior is undefined.
+   *  \param [in] file
+   *    An owning wrapper to the file descriptor to assume
+   *    ownership of. It is assumed that `O_NONBLOCK` is set
+   *    on this file descriptor. If this is not the case the
+   *    behavior is undefined.
+   */
   accept_file(execution_context& ctx,
               fd file);
 private:
@@ -74,13 +93,69 @@ private:
     }
   };
 public:
+  /**
+   *  Type alias for \ref asio_uring::execution_context::executor_type "execution_context::executor_type".
+   */
   using executor_type = impl::executor_type;
+  /**
+   *  Type alias for \ref asio_uring::service::implementation_type "service::implementation_type".
+   */
   using implementation_type = impl::implementation_type;
+  /**
+   *  Type alias for \ref service.
+   */
   using service_type = impl::service_type;
+  /**
+   *  Retrieves the I/O executor for this object.
+   *
+   *  \return
+   *    An \ref executor_type "executor".
+   */
   executor_type get_executor() const noexcept;
+  /**
+   *  @{
+   *  Retrieves the wrapped \ref implementation_type "implementation handle".
+   *
+   *  \return
+   *    A reference to the wrapped \ref implementation_type "implementation handle".
+   */
   implementation_type& get_implementation() noexcept;
   const implementation_type& get_implementation() const noexcept;
+  /**
+   *  @}
+   */
   service_type& get_service() noexcept;
+  /**
+   *  Initiates an asynchronous operation which has the
+   *  same effect as the following synchronous call:
+   *  \code
+   *  accept4(native_handle(),
+   *          nullptr,
+   *          nullptr,
+   *          O_NONBLOCK);
+   *  \endcode
+   *
+   *  \tparam CompletionToken
+   *    A completion token whose associated completion
+   *    handler is invocable with the following signature:
+   *    \code
+   *    void(std::error_code,
+   *         fd);
+   *    \endcode
+   *    Where the arguments are:
+   *    1. The result of the operation
+   *    2. An owning wrapper for the newly-accepted file
+   *       descriptor (note that this argument is not
+   *       meaningful if the first argument is truthy)
+   *
+   *  \param [in] token
+   *    The completion token to use to notify the caller
+   *    of asynchronous completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken` and
+   *    `token`.
+   */
   template<typename CompletionToken>
   auto async_accept(CompletionToken&& token) {
     assert(impl_);
@@ -88,6 +163,46 @@ public:
     return impl_->async_accept(ptr,
                                std::forward<CompletionToken>(token));
   }
+  /**
+   *  Initiates an asynchronous operation which has the
+   *  same effect as the following synchronous call:
+   *  \code
+   *  ::socklen_t addrlen = sizeof(addr);
+   *  accept4(native_handle(),
+   *          reinterpret_cast<::sockaddr*>(std::addressof(addr)),
+   *          &addrlen,
+   *          O_NONBLOCK);
+   *  \endcode
+   *
+   *  \tparam Address
+   *    The type of object used to represent the address
+   *    from which a connection was accepted.
+   *  \tparam CompletionToken
+   *    A completion token whose associated completion
+   *    handler is invocable with the following signature:
+   *    \code
+   *    void(std::error_code,
+   *         fd);
+   *    \endcode
+   *    Where the arguments are:
+   *    1. The result of the operation
+   *    2. An owning wrapper for the newly-accepted file
+   *       descriptor (note that this argument is not
+   *       meaningful if the first argument is truthy)
+   *
+   *  \param [out] addr
+   *    An object used to represent the address from which
+   *    the connection is accepted. This reference must remain
+   *    valid for the lifetime of the asynchronous operation or
+   *    the behavior is undefined.
+   *  \param [in] token
+   *    The completion token to use to notify the caller
+   *    of asynchronous completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken` and
+   *    `token`.
+   */
   template<typename Address,
            typename CompletionToken>
   auto async_accept(Address& addr,

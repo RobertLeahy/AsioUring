@@ -50,13 +50,52 @@ private:
 
 }
 
+/**
+ *  An I/O object for asynchronous `io_uring` operations
+ *  against file descriptors which are not suitable
+ *  for use with \ref async_file.
+ *
+ *  This class models:
+ *
+ *  - `AsyncReadStream`
+ *  - `AsyncWriteStream`
+ *
+ *  \sa
+ *    async_file
+ */
 class poll_file : public file_object {
 private:
   using signature = void(std::error_code,
                          std::size_t);
 public:
+#ifndef ASIO_URING_DOXYGEN_RUNNING
   poll_file(execution_context& ctx,
             fd file);
+#endif
+  /**
+   *  Initiates an asynchronous operation which
+   *  completes when the owned file descriptor
+   *  becomes readable (i.e. when `poll` would
+   *  return with `POLLIN`).
+   *
+   *  \tparam CompletionToken
+   *    A completion token whose associated
+   *    completion handler in invocable with the
+   *    following signature:
+   *    \code
+   *    void(std::error_code);
+   *    \endcode
+   *    Where the argument is the result of the
+   *    operation.
+   *
+   *  \param [in] token
+   *    The completion token to use to notify the
+   *    caller of completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken`
+   *    and `token`.
+   */
   template<typename CompletionToken>
   auto async_poll_in(CompletionToken&& token) {
     return get_service().initiate_poll_add(get_implementation(),
@@ -64,6 +103,30 @@ public:
                                            POLLIN,
                                            wrap_token(std::forward<CompletionToken>(token)));
   }
+  /**
+   *  Initiates an asynchronous operation which
+   *  completes when the owned file descriptor
+   *  becomes writable (i.e. when `poll` would
+   *  return with `POLLOUT`).
+   *
+   *  \tparam CompletionToken
+   *    A completion token whose associated
+   *    completion handler in invocable with the
+   *    following signature:
+   *    \code
+   *    void(std::error_code);
+   *    \endcode
+   *    Where the argument is the result of the
+   *    operation.
+   *
+   *  \param [in] token
+   *    The completion token to use to notify the
+   *    caller of completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken`
+   *    and `token`.
+   */
   template<typename CompletionToken>
   auto async_poll_out(CompletionToken&& token) {
     return get_service().initiate_poll_add(get_implementation(),
@@ -72,6 +135,32 @@ public:
                                            wrap_token(std::forward<CompletionToken>(token)));
   }
 protected:
+  /**
+   *  Submits the completion handler associated with
+   *  a certain completion token for execution on
+   *  either its associated `Executor` (if it has such
+   *  an association) or the `Executor` obtained by
+   *  calling \ref basic_io_object::get_executor "get_executor"
+   *  (otherwise) using `post` and synthesizing a return
+   *  value using `boost::asio::async_result`.
+   *
+   *  \tparam CompletionToken
+   *    The completion token to use to deduce the
+   *    completion handler and returned value.
+   *  \tparam Args
+   *    Arguments to pass through to the deduced
+   *    completion handler.
+   *
+   *  \param [in] token
+   *    The completion token.
+   *  \param [in] args
+   *    The arguments to provide to the deduced completion
+   *    handler.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken`
+   *    and `token`.
+   */
   template<typename CompletionToken,
            typename... Args>
   auto post(CompletionToken token,
@@ -90,6 +179,55 @@ protected:
                       std::forward<Args>(args)...),
             alloc);
   }
+  /**
+   *  Asynchronously waits for the underlying file descriptor
+   *  to become ready for reading or writing and then
+   *  allows the completion handler to be invoked after a
+   *  synchronous operation takes place.
+   *
+   *  This simplifies the implementation of asynchronous
+   *  operations which perform the typical POSIX
+   *  I/O process of:
+   *
+   *  1. Wait for readiness (`poll`, `select`, etc.)
+   *  2. Perform synchronous, non-blocking operation
+   *     (`read`, `write`, etc.)
+   *
+   *  By allowing the caller to defer Boost.Asio boilerplate
+   *  and the asynchronous wait for readiness to this
+   *  initiating function.
+   *
+   *  \tparam In
+   *    `true` for `POLLIN`, `false` for `POLLOUT`.
+   *  \tparam Signature
+   *    The signature of the completion handler for the
+   *    operation being initiated.
+   *  \tparam Invoker
+   *    The type of function which will be invoked to perform
+   *    the synchronous part of the operation. Must be invocable
+   *    with a signature of:
+   *    \code
+   *    template<typename CompletionHandler>
+   *    void(std::error_code,
+   *         CompletionHandler);
+   *    \endcode
+   *    Where the first argument is the result of the asynchronous
+   *    wait for readiness and the second argument is the final
+   *    completion handler.
+   *  \tparam CompletionToken
+   *    A completion token type.
+   *
+   *  \param [in] i
+   *    The function to invoke to perform the synchronous part
+   *    of the operation.
+   *  \param [in] token
+   *    The completion token to use to notify the caller of
+   *    completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken` and
+   *    `token`.
+   */
   template<bool In,
            typename Signature,
            typename Invoker,
@@ -130,6 +268,36 @@ private:
                 std::size_t(0));
   }
 public:
+  /**
+   *  Asynchronously reads from the file descriptor.
+   *
+   *  \tparam MutableBufferSequence
+   *    A type which models `MutableBufferSequence`.
+   *  \tparam CompletionToken
+   *    A completion token whose associated completion handler
+   *    is invocable with the following signature:
+   *    \code
+   *    void(std::error_code,
+   *         std::size_t);
+   *    \endcode
+   *    Where the first argument is the result of the
+   *    operation and the second argument is the number
+   *    of bytes read.
+   *
+   *  \param [in] mb
+   *    The buffers into which to read bytes. Note that
+   *    while this object itself will be copied as needed
+   *    the underlying buffers must remain valid until
+   *    the asynchronous operation completes or the behavior
+   *    is undefined.
+   *  \param [in] token
+   *    A completion token to use to notify the caller of
+   *    completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken` and
+   *    `token`.
+   */
   template<typename MutableBufferSequence,
            typename CompletionToken>
   auto async_read_some(MutableBufferSequence mb,
@@ -151,6 +319,36 @@ public:
                             },
                             std::forward<CompletionToken>(token));
   }
+  /**
+   *  Asynchronously writes to the file descriptor.
+   *
+   *  \tparam ConstBufferSequence
+   *    A type which models `ConstBufferSequence`.
+   *  \tparam CompletionToken
+   *    A completion token whose associated completion handler
+   *    is invocable with the following signature:
+   *    \code
+   *    void(std::error_code,
+   *         std::size_t);
+   *    \endcode
+   *    Where the first argument is the result of the
+   *    operation and the second argument is the number
+   *    of bytes written.
+   *
+   *  \param [in] cb
+   *    The buffers from which to write bytes. Note that
+   *    while this object itself will be copied as needed
+   *    the underlying buffers must remain valid until
+   *    the asynchronous operation completes or the behavior
+   *    is undefined.
+   *  \param [in] token
+   *    A completion token to use to notify the caller of
+   *    completion.
+   *
+   *  \return
+   *    Whatever is appropriate given `CompletionToken` and
+   *    `token`.
+   */
   template<typename ConstBufferSequence,
            typename CompletionToken>
   auto async_write_some(ConstBufferSequence cb,
@@ -176,6 +374,7 @@ public:
 
 }
 
+#ifndef ASIO_URING_DOXYGEN_RUNNING
 namespace boost::asio {
 
 template<typename CompletionHandler,
@@ -219,3 +418,4 @@ public:
 };
 
 }
+#endif

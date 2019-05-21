@@ -207,7 +207,83 @@ using select_t = typename select<Storage,
 
 }
 
+#ifdef ASIO_URING_DOXYGEN_RUNNING
+/**
+ *  Provides type erased storage for a callable
+ *  object with a certain signature.
+ *
+ *  As compared to `std::function` makes the following
+ *  trade offs:
+ *
+ *  - Configurable small function optimization
+ *  - Movable but not copyable (and therefore stored
+ *    function objects need not be copyable)
+ *  - Allocation is customizable (`std::function`
+ *    `Allocator` support was deprecated and removed)
+ *    and customized allocation meets the requirements
+ *    of Boost.Asio and the Networking TS (i.e. if an
+ *    allocator is used to allocate storage for a
+ *    callable object that storage is deallocated before
+ *    the callable object is invoked)
+ *  - Not assignable
+ *  - Stored objects may only be invoked once
+ *
+ *  \tparam Buffer
+ *    The size of the buffer to use for the small function
+ *    optimization. Note that for very small values a
+ *    larger value may be chosen internally.
+ *  \tparam Signature
+ *    A function signature with which stored callable
+ *    objects shall be invocable. Defaults to `void()`.
+ */
 template<std::size_t Buffer,
+         typename Signature>
+class callable_storage {
+  callable_storage() = delete;
+  callable_storage(const callable_storage&) = delete;
+  callable_storage(callable_storage&&) = delete;
+  callable_storage& operator=(const callable_storage&) = delete;
+  callable_storage& operator=(callable_storage&&) = delete;
+  /**
+   *  Creates a callable_storage by storing some
+   *  callable object.
+   *
+   *  \tparam T
+   *    The type of object to store.
+   *  \tparam Allocator
+   *    The type of `Allocator` to use to customize
+   *    the allocation strategy.
+   *
+   *  \param [in] t
+   *    The object to store.
+   *  \param [in] alloc
+   *    The `Allocator` to use to allocate memory if
+   *    necessary. If `t` is sufficiently small that
+   *    it qualifies for the small function optimization
+   *    this argument is not used.
+   */
+  template<typename T,
+           typename Allocator>
+  callable_storage(T&& t,
+                   const Allocator& alloc);
+  /**
+   *  Invokes the stored object.
+   *
+   *  Invoking this function multiple times on the same
+   *  object results in undefined behavior.
+   *
+   *  \param [in] args
+   *    The arguments to the stored object.
+   *
+   *  \return
+   *    The result of invoking the stored object.
+   */
+  R operator()(Args... args);
+};
+
+#else
+
+template<std::size_t,
          typename Signature = void()>
 class callable_storage;
 
@@ -270,5 +346,6 @@ private:
   base_type*   ptr_;
 #endif
 };
+#endif
 
 }
