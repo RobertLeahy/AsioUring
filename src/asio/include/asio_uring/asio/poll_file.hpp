@@ -370,20 +370,20 @@ public:
                         CompletionToken&& token)
   {
     return async_impl<false>(cb,
-                            [fd = native_handle(),
-                             cb](auto ec,
-                                 auto h)
-                            {
-                              std::size_t bytes_transferred = 0;
-                              if (!ec) {
-                                bytes_transferred = asio::write(fd,
-                                                                cb,
-                                                                ec);
-                              }
-                              h(error_code(ec),
-                                bytes_transferred);
-                            },
-                            std::forward<CompletionToken>(token));
+                             [fd = native_handle(),
+                              cb](auto ec,
+                                  auto h)
+                             {
+                               std::size_t bytes_transferred = 0;
+                               if (!ec) {
+                                 bytes_transferred = asio::write(fd,
+                                                                 cb,
+                                                                 ec);
+                               }
+                               h(error_code(ec),
+                                 bytes_transferred);
+                             },
+                             std::forward<CompletionToken>(token));
   }
 };
 
