@@ -35,6 +35,9 @@ std::size_t read(int fd,
       }
       return retr;
     }
+    if (!result) {
+      break;
+    }
     std::size_t read(result);
     retr += read;
     ptr = static_cast<char*>(ptr) + read;
