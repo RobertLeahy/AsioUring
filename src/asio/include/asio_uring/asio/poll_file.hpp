@@ -16,6 +16,7 @@
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/post.hpp>
+#include "error_code.hpp"
 #include "execution_context.hpp"
 #include "file_object.hpp"
 #include "read.hpp"
@@ -264,7 +265,7 @@ private:
                                         std::forward<CompletionToken>(token));
     }
     return post(std::forward<CompletionToken>(token),
-                std::error_code(),
+                error_code(),
                 std::size_t(0));
   }
 public:
@@ -282,7 +283,14 @@ public:
    *    \endcode
    *    Where the first argument is the result of the
    *    operation and the second argument is the number
-   *    of bytes read.
+   *    of bytes read. Note that in order to satisfy the
+   *    `AsyncReadStream` concept as specified by Boost.Asio
+   *    the final completion handler may alternately be
+   *    invocable with the following signature:
+   *    \code
+   *    void(boost::system::error_code,
+   *         std::size_t);
+   *    \endcode
    *
    *  \param [in] mb
    *    The buffers into which to read bytes. Note that
@@ -314,7 +322,7 @@ public:
                                                                mb,
                                                                ec);
                               }
-                              h(ec,
+                              h(error_code(ec),
                                 bytes_transferred);
                             },
                             std::forward<CompletionToken>(token));
@@ -333,7 +341,14 @@ public:
    *    \endcode
    *    Where the first argument is the result of the
    *    operation and the second argument is the number
-   *    of bytes written.
+   *    of bytes written. Note that in order to satisfy the
+   *    `AsyncReadStream` concept as specified by Boost.Asio
+   *    the final completion handler may alternately be
+   *    invocable with the following signature:
+   *    \code
+   *    void(boost::system::error_code,
+   *         std::size_t);
+   *    \endcode
    *
    *  \param [in] cb
    *    The buffers from which to write bytes. Note that
@@ -365,7 +380,7 @@ public:
                                                                 cb,
                                                                 ec);
                               }
-                              h(ec,
+                              h(error_code(ec),
                                 bytes_transferred);
                             },
                             std::forward<CompletionToken>(token));
