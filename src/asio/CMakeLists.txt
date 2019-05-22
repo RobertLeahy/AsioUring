@@ -17,4 +17,5 @@ asio_uring_add_library(asio SOURCES accept_file.cpp
                                       Boost::system
                                       core
                                       Uring::Uring)
+add_subdirectory(example)
 add_subdirectory(tests)
