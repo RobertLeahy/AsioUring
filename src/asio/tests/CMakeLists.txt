@@ -4,6 +4,7 @@ asio_uring_add_test(asio
                             basic_io_object.cpp
                             completion_handler.cpp
                             connect_file.cpp
+                            error_code.cpp
                             execution_context.cpp
                             fd_completion_handler.cpp
                             fd_completion_token.cpp
