@@ -7,7 +7,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <asio_uring/fd.hpp>
@@ -16,7 +15,7 @@
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/post.hpp>
-#include "error_code.hpp"
+#include <boost/system/error_code.hpp>
 #include "execution_context.hpp"
 #include "file_object.hpp"
 #include "read.hpp"
@@ -37,7 +36,7 @@ public:
     : i_(std::move(i)),
       h_(std::move(h))
   {}
-  void operator()(std::error_code ec) {
+  void operator()(boost::system::error_code ec) {
     i_(ec,
        std::move(h_));
   }
@@ -66,7 +65,7 @@ private:
  */
 class poll_file : public file_object {
 private:
-  using signature = void(std::error_code,
+  using signature = void(boost::system::error_code,
                          std::size_t);
 public:
 #ifndef ASIO_URING_DOXYGEN_RUNNING
@@ -84,7 +83,7 @@ public:
    *    completion handler in invocable with the
    *    following signature:
    *    \code
-   *    void(std::error_code);
+   *    void(boost::system::error_code);
    *    \endcode
    *    Where the argument is the result of the
    *    operation.
@@ -115,7 +114,7 @@ public:
    *    completion handler in invocable with the
    *    following signature:
    *    \code
-   *    void(std::error_code);
+   *    void(boost::system::error_code);
    *    \endcode
    *    Where the argument is the result of the
    *    operation.
@@ -209,7 +208,7 @@ protected:
    *    with a signature of:
    *    \code
    *    template<typename CompletionHandler>
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         CompletionHandler);
    *    \endcode
    *    Where the first argument is the result of the asynchronous
@@ -265,7 +264,7 @@ private:
                                         std::forward<CompletionToken>(token));
     }
     return post(std::forward<CompletionToken>(token),
-                error_code(),
+                boost::system::error_code(),
                 std::size_t(0));
   }
 public:
@@ -278,7 +277,7 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         std::size_t);
    *    \endcode
    *    Where the first argument is the result of the
@@ -313,7 +312,7 @@ public:
   {
     return async_impl<true>(mb,
                             [fd = native_handle(),
-                             mb](auto ec,
+                             mb](boost::system::error_code ec,
                                  auto h)
                             {
                               std::size_t bytes_transferred = 0;
@@ -322,7 +321,7 @@ public:
                                                                mb,
                                                                ec);
                               }
-                              h(error_code(ec),
+                              h(ec,
                                 bytes_transferred);
                             },
                             std::forward<CompletionToken>(token));
@@ -336,19 +335,12 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         std::size_t);
    *    \endcode
    *    Where the first argument is the result of the
    *    operation and the second argument is the number
-   *    of bytes written. Note that in order to satisfy the
-   *    `AsyncReadStream` concept as specified by Boost.Asio
-   *    the final completion handler may alternately be
-   *    invocable with the following signature:
-   *    \code
-   *    void(boost::system::error_code,
-   *         std::size_t);
-   *    \endcode
+   *    of bytes written.
    *
    *  \param [in] cb
    *    The buffers from which to write bytes. Note that
@@ -371,7 +363,7 @@ public:
   {
     return async_impl<false>(cb,
                              [fd = native_handle(),
-                              cb](auto ec,
+                              cb](boost::system::error_code ec,
                                   auto h)
                              {
                                std::size_t bytes_transferred = 0;
@@ -380,7 +372,7 @@ public:
                                                                  cb,
                                                                  ec);
                                }
-                               h(error_code(ec),
+                               h(ec,
                                  bytes_transferred);
                              },
                              std::forward<CompletionToken>(token));

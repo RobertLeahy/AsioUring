@@ -11,6 +11,8 @@
 #include <utility>
 #include <asio_uring/accept.hpp>
 #include <asio_uring/fd.hpp>
+#include <boost/system/error_code.hpp>
+#include "error_code.hpp"
 #include "poll_file.hpp"
 
 namespace asio_uring::asio {
@@ -44,7 +46,7 @@ public:
   accept_file(execution_context& ctx,
               fd file);
 private:
-  using signature = void(std::error_code,
+  using signature = void(boost::system::error_code,
                          fd);
   class impl : public poll_file,
                public std::enable_shared_from_this<impl>
@@ -57,7 +59,7 @@ private:
                       CompletionToken&& token)
     {
       auto i = [addr,
-                self = shared_from_this()](auto ec,
+                self = shared_from_this()](boost::system::error_code ec,
                                            auto h) mutable
       {
         if (ec) {
@@ -66,16 +68,17 @@ private:
           return;
         }
         std::optional<fd> accepted;
+        std::error_code sec;
         if (addr) {
           accepted = accept(self->native_handle(),
                             *addr,
-                            ec);
+                            sec);
         } else {
           accepted = accept(self->native_handle(),
-                            ec);
+                            sec);
         }
-        if (ec) {
-          h(ec,
+        if (sec) {
+          h(to_boost_error_code(sec),
             fd());
           return;
         }
@@ -139,7 +142,7 @@ public:
    *    A completion token whose associated completion
    *    handler is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         fd);
    *    \endcode
    *    Where the arguments are:
@@ -181,7 +184,7 @@ public:
    *    A completion token whose associated completion
    *    handler is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         fd);
    *    \endcode
    *    Where the arguments are:

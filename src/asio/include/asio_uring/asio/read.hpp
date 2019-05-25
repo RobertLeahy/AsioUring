@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cstddef>
-#include <system_error>
 #include <boost/asio/buffer.hpp>
+#include <boost/system/error_code.hpp>
 
 namespace asio_uring::asio {
 
@@ -24,15 +24,15 @@ namespace asio_uring::asio {
  *  \param [in] buffer
  *    The buffer into which to read.
  *  \param [out] ec
- *    A `std::error_code` which shall receive
- *    the result of the operation.
+ *    A `boost::system::error_code` which
+ *    shall receive the result of the operation.
  *
  *  \return
  *    The number of bytes read.
  */
 std::size_t read(int fd,
                  boost::asio::mutable_buffer buffer,
-                 std::error_code& ec) noexcept;
+                 boost::system::error_code& ec) noexcept;
 
 /**
  *  Reads as many bytes as possible into
@@ -50,8 +50,8 @@ std::size_t read(int fd,
  *  \param [in] mb
  *    The sequence of buffers into which to read.
  *  \param [out] ec
- *    A `std::error_code` which shall receive the
- *    result of the operation.
+ *    A `boost::system::error_code` which shall
+ *    receive the result of the operation.
  *
  *  \return
  *    The number of bytes read.
@@ -59,7 +59,7 @@ std::size_t read(int fd,
 template<typename MutableBufferSequence>
 std::size_t read(int fd,
                  MutableBufferSequence mb,
-                 std::error_code& ec)
+                 boost::system::error_code& ec)
 {
   ec.clear();
   std::size_t retr = 0;

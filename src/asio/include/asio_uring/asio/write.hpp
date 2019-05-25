@@ -5,8 +5,8 @@
 #pragma once
 
 #include <cstddef>
-#include <system_error>
 #include <boost/asio/buffer.hpp>
+#include <boost/system/error_code.hpp>
 
 namespace asio_uring::asio {
 
@@ -24,15 +24,16 @@ namespace asio_uring::asio {
  *  \param [in] buffer
  *    The buffer.
  *  \param [out] ec
- *    A `std::error_code` object which shall
- *    receive the result of the operation.
+ *    A `boost::system::error_code` object
+ *    which shall receive the result of
+ *    the operation.
  *
  *  \return
  *    The number of bytes written.
  */
 std::size_t write(int fd,
                   boost::asio::const_buffer buffer,
-                  std::error_code& ec) noexcept;
+                  boost::system::error_code& ec) noexcept;
 
 /**
  *  Writes as many bytes as possible from
@@ -50,8 +51,8 @@ std::size_t write(int fd,
  *  \param [in] cb
  *    The sequence of buffers from which to write.
  *  \param [out] ec
- *    A `std::error_code` which shall receive the
- *    result of the operation.
+ *    A `boost::system::error_code` which shall
+ *    receive the result of the operation.
  *
  *  \return
  *    The number of bytes read.
@@ -59,7 +60,7 @@ std::size_t write(int fd,
 template<typename ConstBufferSequence>
 std::size_t write(int fd,
                   ConstBufferSequence cb,
-                  std::error_code& ec)
+                  boost::system::error_code& ec)
 {
   ec.clear();
   std::size_t retr = 0;

@@ -7,6 +7,7 @@
 #include <system_error>
 #include <utility>
 #include <asio_uring/connect.hpp>
+#include "error_code.hpp"
 #include "poll_file.hpp"
 
 namespace asio_uring::asio {
@@ -31,7 +32,7 @@ public:
    *    A completion token whose associated completion
    *    handler is invocable with the following signature:
    *    \code
-   *    void(std::error_code);
+   *    void(boost::system::error_code);
    *    \endcode
    *    Where the sole argument gives the result of the
    *    operation.
@@ -55,15 +56,22 @@ public:
     bool connected = asio_uring::connect(native_handle(),
                                          addr,
                                          ec);
-    if (ec || connected) {
+    if (ec) {
       return post(std::forward<CompletionToken>(token),
-                  ec);
+                  to_boost_error_code(ec));
     }
-    auto i = [fd = native_handle()](auto ec,
+    if (connected) {
+      return post(std::forward<CompletionToken>(token),
+                  boost::system::error_code());
+    }
+    auto i = [fd = native_handle()](boost::system::error_code ec,
                                     auto h)
     {
       if (!ec) {
-        ec = connect_error(fd);
+        auto sec = connect_error(fd);
+        if (sec) {
+          ec = to_boost_error_code(sec);
+        }
       }
       h(ec);
     };

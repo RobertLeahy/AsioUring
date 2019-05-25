@@ -51,7 +51,7 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         std::size_t);
    *    \endcode
    *    Where the arguments are:
@@ -97,7 +97,7 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code,
+   *    void(boost::system::error_code,
    *         std::size_t);
    *    \endcode
    *    Where the arguments are:
@@ -140,7 +140,7 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code);
+   *    void(boost::system::error_code);
    *    \endcode
    *    Where the argument is the result of the operation.
    *
@@ -172,7 +172,7 @@ public:
    *    A completion token whose associated completion handler
    *    is invocable with the following signature:
    *    \code
-   *    void(std::error_code);
+   *    void(boost::system::error_code);
    *    \endcode
    *    Where the argument is the result of the operation.
    *

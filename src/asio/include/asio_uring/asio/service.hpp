@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <iterator>
 #include <memory>
-#include <system_error>
 #include <type_traits>
 #include <utility>
 #include <asio_uring/asio/completion_handler.hpp>
@@ -17,6 +16,7 @@
 #include <asio_uring/service.hpp>
 #include <boost/asio/async_result.hpp>
 #include <boost/asio/execution_context.hpp>
+#include <boost/system/error_code.hpp>
 #include "execution_context.hpp"
 #include <sys/uio.h>
 
@@ -41,16 +41,16 @@ class service : public asio_uring::service,
                 public boost::asio::execution_context::service
 {
 private:
-  using rw_signature = void(std::error_code,
+  using rw_signature = void(boost::system::error_code,
                             std::size_t);
-  using poll_signature = void(std::error_code);
+  using poll_signature = void(boost::system::error_code);
   using fsync_signature = poll_signature;
-  using rw_result_type = std::pair<std::error_code,
+  using rw_result_type = std::pair<boost::system::error_code,
                                    std::size_t>;
   static rw_result_type to_rw_result(int) noexcept;
-  static std::error_code to_poll_add_result(int) noexcept;
-  static std::error_code to_poll_remove_result(int) noexcept;
-  static std::error_code to_fsync_result(int) noexcept;
+  static boost::system::error_code to_poll_add_result(int) noexcept;
+  static boost::system::error_code to_poll_remove_result(int) noexcept;
+  static boost::system::error_code to_fsync_result(int) noexcept;
   template<typename Function>
   static auto make_rw_completion(Function f) {
     return [func = std::move(f)](auto&& cqe) mutable {

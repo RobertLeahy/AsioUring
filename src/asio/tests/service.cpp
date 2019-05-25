@@ -11,6 +11,7 @@
 #include <boost/asio/error.hpp>
 #include <boost/asio/execution_context.hpp>
 #include <boost/core/noncopyable.hpp>
+#include <boost/system/error_code.hpp>
 #include <errno.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -197,8 +198,8 @@ TEST_CASE("service initiate_read_some_at bad handle") {
   CHECK(handlers == 1);
   REQUIRE(ec);
   CHECK(*ec);
-  CHECK(*ec == std::error_code(EBADF,
-                               std::generic_category()));
+  CHECK(*ec == boost::system::error_code(EBADF,
+                                         boost::system::generic_category()));
   REQUIRE(bytes_transferred);
   CHECK(*bytes_transferred == 0);
 }
@@ -412,8 +413,8 @@ TEST_CASE("service initiate_write_some_at bad handle",
   CHECK(handlers == 1);
   REQUIRE(ec);
   CHECK(*ec);
-  CHECK(*ec == std::error_code(EBADF,
-                               std::generic_category()));
+  CHECK(*ec == boost::system::error_code(EBADF,
+                                         boost::system::generic_category()));
   REQUIRE(bytes_transferred);
   CHECK(*bytes_transferred == 0);
 }
@@ -472,8 +473,8 @@ TEST_CASE("service initiate_poll_add bad handle",
   CHECK(handlers == 1);
   REQUIRE(ec);
   CHECK(*ec);
-  CHECK(*ec == std::error_code(EBADF,
-                               std::generic_category()));
+  CHECK(*ec == boost::system::error_code(EBADF,
+                                         boost::system::generic_category()));
 }
 
 TEST_CASE("service initiate_poll_remove",
@@ -540,8 +541,8 @@ TEST_CASE("service initiate_poll_remove not found",
   CHECK(handlers == 1);
   REQUIRE(ec);
   CHECK(*ec);
-  CHECK(*ec == std::error_code(ENOENT,
-                               std::generic_category()));
+  CHECK(*ec == boost::system::error_code(ENOENT,
+                                         boost::system::generic_category()));
 }
 
 TEST_CASE("service initiate_fsync",
@@ -611,8 +612,8 @@ TEST_CASE("service initiate_fsync bad fd",
   CHECK(handlers == 1);
   REQUIRE(ec);
   CHECK(*ec);
-  CHECK(*ec == std::error_code(EBADF,
-                               std::generic_category()));
+  CHECK(*ec == boost::system::error_code(EBADF,
+                                         boost::system::generic_category()));
 }
 
 }

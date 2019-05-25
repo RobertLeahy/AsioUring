@@ -3,10 +3,10 @@
 #include <algorithm>
 #include <numeric>
 #include <string_view>
-#include <system_error>
 #include <vector>
 #include <asio_uring/fd.hpp>
 #include <boost/asio/buffer.hpp>
+#include <boost/system/error_code.hpp>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -26,7 +26,7 @@ TEST_CASE("write empty",
   fd read(pipes[0]);
   fd write(pipes[1]);
   std::vector<boost::asio::const_buffer> bs;
-  auto ec = make_error_code(std::errc::not_enough_memory);
+  auto ec = make_error_code(boost::system::errc::not_enough_memory);
   auto written = asio::write(write.native_handle(),
                              bs,
                              ec);
@@ -56,7 +56,7 @@ TEST_CASE("write",
   bs.push_back(boost::asio::buffer(a));
   bs.push_back(boost::asio::buffer(b));
   bs.push_back(boost::asio::buffer(c));
-  auto ec = make_error_code(std::errc::not_enough_memory);
+  auto ec = make_error_code(boost::system::errc::not_enough_memory);
   auto written = asio::write(write.native_handle(),
                              bs,
                              ec);
@@ -77,13 +77,13 @@ TEST_CASE("write bad file descriptor",
   std::string_view a("Hello");
   std::vector<boost::asio::const_buffer> bs;
   bs.push_back(boost::asio::buffer(a));
-  std::error_code ec;
+  boost::system::error_code ec;
   auto written = asio::write(-1,
                              bs,
                              ec);
   CHECK(ec);
-  CHECK(ec == std::error_code(EBADF,
-                              std::generic_category()));
+  CHECK(ec == boost::system::error_code(EBADF,
+                                        boost::system::generic_category()));
   CHECK(written == 0);
 }
 
@@ -108,7 +108,7 @@ TEST_CASE("write incomplete",
   vec.push_back(0);
   std::vector<boost::asio::const_buffer> bs;
   bs.push_back(boost::asio::buffer(vec));
-  std::error_code ec;
+  boost::system::error_code ec;
   auto written = asio::write(write.native_handle(),
                              bs,
                              ec);

@@ -1,44 +1,44 @@
 #include <asio_uring/asio/service.hpp>
 
-#include <system_error>
 #include <asio_uring/asio/execution_context.hpp>
 #include <asio_uring/execution_context.hpp>
 #include <boost/asio/error.hpp>
+#include <boost/system/error_code.hpp>
 
 namespace asio_uring::asio {
 
 service::rw_result_type service::to_rw_result(int res) noexcept {
-  rw_result_type retr(std::error_code(),
+  rw_result_type retr(boost::system::error_code(),
                       0);
   if (res < 0) {
     retr.first.assign(-res,
-                      std::generic_category());
+                      boost::system::generic_category());
   } else {
     retr.second = res;
   }
   return retr;
 }
 
-std::error_code service::to_poll_add_result(int res) noexcept {
+boost::system::error_code service::to_poll_add_result(int res) noexcept {
   if (res > 0) {
-    return std::error_code();
+    return boost::system::error_code();
   }
   if (res < 0) {
-    return std::error_code(-res,
-                           std::generic_category());
+    return boost::system::error_code(-res,
+                                     boost::system::generic_category());
   }
   return make_error_code(boost::asio::error::operation_aborted);
 }
 
-std::error_code service::to_poll_remove_result(int res) noexcept {
+boost::system::error_code service::to_poll_remove_result(int res) noexcept {
   if (res >= 0) {
-    return std::error_code();
+    return boost::system::error_code();
   }
-  return std::error_code(-res,
-                         std::generic_category());
+  return boost::system::error_code(-res,
+                                   boost::system::generic_category());
 }
 
-std::error_code service::to_fsync_result(int res) noexcept {
+boost::system::error_code service::to_fsync_result(int res) noexcept {
   return to_poll_remove_result(res);
 }
 
