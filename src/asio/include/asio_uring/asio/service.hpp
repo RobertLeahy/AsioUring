@@ -65,7 +65,7 @@ private:
                            int fd,
                            void (*prep)(::io_uring_sqe*,
                                         int,
-                                        ::iovec*,
+                                        const ::iovec*,
                                         unsigned,
                                         ::off_t),
                            std::uint64_t o,
