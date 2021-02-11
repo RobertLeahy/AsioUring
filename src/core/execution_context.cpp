@@ -143,8 +143,7 @@ execution_context::execution_context(unsigned entries,
   arr[0] = q_.native_handle();
   arr[1] = stop_.native_handle();
   arr[2] = zero_.native_handle();
-  if (::io_uring_register(u_.native_handle()->ring_fd,
-                          IORING_REGISTER_FILES,
+  if (::io_uring_register_files(reinterpret_cast<io_uring*>(u_.native_handle()),
                           arr,
                           3))
   {
